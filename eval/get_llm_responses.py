@@ -5,6 +5,7 @@ import openai
 import anthropic
 import multiprocessing as mp
 import time
+import requests
 
 def encode_question(question, api_name):
     """Encode multiple prompt instructions into a single string."""
@@ -23,7 +24,7 @@ def encode_question(question, api_name):
         Natural Language Processing Text2Text Generation, Natural Language Processing Sentence Similarity, Audio Text-to-Speech, Audio Automatic Speech Recognition, \
         Audio Audio-to-Audio, Audio Audio Classification, Audio Voice Activity Detection, Tabular Tabular Classification, Tabular Tabular Regression, \
         Reinforcement Learning Reinforcement Learning, Reinforcement Learning Robotics }"
-    elif api_name == "tensorhub":
+    elif api_name == "tensorflowhub":
         domains = "1. $DOMAIN is inferred from the task description and should include one of {text-sequence-alignment, text-embedding, text-language-model, text-preprocessing, text-classification, text-generation, text-question-answering, text-retrieval-question-answering, text-segmentation, text-to-mel, image-classification, image-feature-vector, image-object-detection, image-segmentation, image-generator, image-pose-detection, image-rnn-agent, image-augmentation, image-classifier, image-style-transfer, image-aesthetic-quality, image-depth-estimation, image-super-resolution, image-deblurring, image-extrapolation, image-text-recognition, image-dehazing, image-deraining, image-enhancemenmt, image-classification-logits, image-frame-interpolation, image-text-detection, image-denoising, image-others, video-classification, video-feature-extraction, video-generation, video-audio-text, video-text, audio-embedding, audio-event-classification, audio-command-detection, audio-paralinguists-classification, audio-speech-to-text, audio-speech-synthesis, audio-synthesis, audio-pitch-extraction}"
     else:
         print("Error: API name is not supported.")
@@ -56,6 +57,61 @@ def get_response(get_response_input, api_key):
                 max_tokens_to_sample=2048,
             )
             response = responses["completion"].strip()
+        elif "chatglm" in model:
+            MODEL_REQUEST_URL = "http://localhost:8001/completion/stream"
+            headers = {
+                "CHARSET": "utf-8",
+                "Authorization": "85577713-4c52-48bd-bf65-57112ce337d2",
+                "Content-Type": "application/json"
+            }
+
+            args = {
+                "top_p": 0.7,
+                "temperature": 0.95,
+                "prompt": f"##第 1 轮##\n问：{question[0]['content']}{question[1]['content']}\n\n答：",
+                "seed": 42,
+            }
+
+            response = requests.request("POST", MODEL_REQUEST_URL, headers=headers, json=args)
+            ans = []
+            for line in response.iter_lines():
+                ans.append(line.decode("utf-8"))
+            finish_idx, meta_idx = -1, -1
+            for i in range(len(ans) - 1, -1, -1):
+                if ans[i] == "event: finish":
+                    finish_idx = i
+                    break
+            for i in range(finish_idx + 1, len(ans)):
+                if ans[i].startswith("meta: {\"model_version\":\"qa-glm-v"):
+                    meta_idx = i
+            res = []
+            for i in range(finish_idx + 2, meta_idx):
+                res.append(ans[i][6:])
+
+            response = "\n".join(res)
+        elif "palm" in model:
+            query = f"{question[0]['content']}{question[1]['content']}"
+            prompt = ''
+            chat_round = 1
+
+            prompt += f'## Round {chat_round} ##\nUser: {query}\n\nAssistant: '
+            
+            url = "http://40.74.217.35:10004/completion"
+            
+            payload = json.dumps({
+                "model": "models/text-bison-001",
+                "prompt": prompt,
+                "temperature": 0.7,
+                "max_output_tokens": 2048,
+            })
+            
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.request("POST", url, headers=headers, data=payload, timeout=50)
+            
+            response = response.text
         else:
             print("Error: Model is not supported.")
     except Exception as e:
@@ -87,7 +143,7 @@ if __name__ == '__main__':
     parser.add_argument("--api_key", type=str, default=None, help="the api key provided for calling")
     parser.add_argument("--output_file", type=str, default=None, help="the output file this script writes to")
     parser.add_argument("--question_data", type=str, default=None, help="path to the questions data file")
-    parser.add_argument("--api_name", type=str, default=None, help="this will be the api dataset name you are testing, only support ['torchhub', 'tensorhun', 'huggingface'] now")
+    parser.add_argument("--api_name", type=str, default=None, help="this will be the api dataset name you are testing, only support ['torchhub', 'tensorflowhub', 'huggingface'] now")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -96,6 +152,8 @@ if __name__ == '__main__':
     question_ids = []
     with open(args.question_data, 'r') as f:
         for idx, line in enumerate(f):
+            # if idx < 200:
+            #     continue
             questions.append(json.loads(line)["text"])
             question_ids.append(json.loads(line)["question_id"])
 
