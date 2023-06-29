@@ -152,8 +152,6 @@ if __name__ == '__main__':
     question_ids = []
     with open(args.question_data, 'r') as f:
         for idx, line in enumerate(f):
-            # if idx < 200:
-            #     continue
             questions.append(json.loads(line)["text"])
             question_ids.append(json.loads(line)["question_id"])
 

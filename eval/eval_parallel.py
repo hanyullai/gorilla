@@ -58,9 +58,9 @@ if __name__ == '__main__':
                 output_path = output_dir + '/' + model + '/' + split + '/' + testset
                 if not os.path.exists(output_path):
                     os.makedirs(output_path)
-                if not os.path.exists(output_path + '/output2.jsonl'):
+                if not os.path.exists(output_path + '/output.jsonl'):
                     if run_cmds:
                         run_cmds += ' & '
-                    run_cmds += cmd % (output_path + '/output2.jsonl', question_path, split)
+                    run_cmds += cmd % (output_path + '/output.jsonl', question_path, split)
     print(run_cmds)
     code, msg = run_cmd(run_cmds)

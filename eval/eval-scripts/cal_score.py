@@ -53,7 +53,7 @@ models = [
     'mt0-xxl'
 ]
 
-response_dir = '/workspace/hanyu/hanyu/gorilla/eval/outputs2_copy'
+response_dir = '/workspace/hanyu/hanyu/gorilla/eval/outputs'
 result = {}
 
 if __name__ == '__main__':
@@ -63,7 +63,7 @@ if __name__ == '__main__':
             result[model][split] = {}
             for testset in [f'questions_{split}_0_shot', f'questions_{split}_bm25', f'questions_{split}_gpt_index', f'questions_{split}_oracle']:
                 response_path = response_dir + '/' + model + '/' + split + '/' + testset + '/output.jsonl'
-                cmd = f'python ast_eval_{script}.py --api_dataset ../../data/api/{split}_api.jsonl --apibench ../../data/apibench/{split}_eval.json --llm_responses /workspace/hanyu/hanyu/gorilla/eval/outputs2_copy/{model}/{split}/{testset}/output.jsonl'
+                cmd = f'python ast_eval_{script}.py --api_dataset ../../data/api/{split}_api.jsonl --apibench ../../data/apibench/{split}_eval.json --llm_responses {response_dir}/{model}/{split}/{testset}/output.jsonl'
                 code, msg = run_cmd(cmd)
                 print(msg)
                 acc, hal = msg.split('\n')[:2]
